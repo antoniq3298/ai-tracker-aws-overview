@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8" />
+    <title>Потвърждение на акаунт – AI Training Tracker</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 37.5rem;
+            margin: 3rem auto;
+            background: #fafafa;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        input,
+        button {
+            width: 100%;
+            font-size: 1rem;
+            margin-top: 0.5rem;
+            padding: 0.75rem;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background-color: #0070f3;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background 0.1s;
+        }
+
+        button:hover {
+            background-color: #0059c9;
+        }
+
+        .error {
+            color: #b00020;
+            margin-top: 0.75rem;
+            white-space: pre-line;
+            font-weight: 600;
+        }
+
+        .success {
+            color: #056608;
+            margin-top: 0.75rem;
+            white-space: pre-line;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+<h2>Потвърди акаунта си</h2>
+<p>
+    Моля, въведи <b>email</b> и <b>6-цифрения код</b>, който получи на имейла
+    си след регистрацията.
+</p>
+
+<label>
+    Email:
+    <input id="email" type="email" placeholder="Въведи email" />
+</label>
+
+<label>
+    Код за потвърждение:
+    <input id="code" type="text" placeholder="Въведи 6-цифрения код" />
+</label>
+
+<button id="confirmBtn">Потвърди акаунта</button>
+
+<div id="message"></div>
+
+<script src="const userPoolId = process.env.REACT_APP_COGNITO_USER_POOL_ID;"></script>
+
+<script>
+    // --- Проверка за вече логнат потребител ---
+    const idToken = localStorage.getItem("idToken");
+    if (idToken) {
+        const tokenClaims = JSON.parse(atob(idToken.split(".")[1]));
+        if (tokenClaims.exp * 1000 > Date.now()) {
+            window.location.href = "training.html";
+        }
+    }
+
+    const poolData = {
+        UserPoolId: "us-east-1_64xXl0aTJ",
+        ClientId: "7q2kt39ik32alt55rkokkgckrl",
+    };
+
+    const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+    document
+        .getElementById("confirmBtn")
+        .addEventListener("click", function () {
+            const email = document.getElementById("email").value.trim();
+            const code = document.getElementById("code").value.trim();
+            const messageEl = document.getElementById("message");
+
+            messageEl.textContent = "";
+
+            if (!email || !code) {
+                messageEl.textContent = "Моля, въведете имейл и код.";
+                messageEl.className = "error";
+                return;
+            }
+
+            const userData = {
+                Username: email,
+                Pool: userPool,
+            };
+
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+            cognitoUser.confirmRegistration(code, true, function (err, result) {
+                if (err) {
+                    messageEl.textContent = err.message || JSON.stringify(err);
+                    messageEl.className = "error";
+                    return;
+                }
+
+                messageEl.textContent = "Акаунтът е потвърден успешно!";
+                messageEl.className = "success";
+
+                setTimeout(() => {
+                    window.location.href = "login.html";
+                }, 2000);
+            });
+        });
+</script>
+</body>
+</html>

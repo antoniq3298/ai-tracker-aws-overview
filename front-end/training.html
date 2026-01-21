@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Training Tracker</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 37.5rem;
+            margin: 3rem auto;
+            background: #fafafa;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+
+        }
+        textarea, input, button {
+            width: 100%;
+            font-size: 1rem;
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+        .label { margin: 1rem 0; }
+        button {
+            background-color: #0070f3;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background 0.1s;
+        }
+        button:hover { background-color: #0059c9; }
+        pre {
+            background: #f4f4f4;
+            padding: 1rem;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+
+<body>
+<h2>Training Entry</h2>
+
+<label>
+    Duration (minutes):
+    <input id="duration" type="text" value="45" />
+</label>
+
+<div class="label">
+    <label>
+        Notes:
+        <textarea id="notes" rows="6" placeholder="Describe your training session..."></textarea>
+    </label>
+</div>
+
+<button id="submit">Submit</button>
+
+<h3>Response</h3>
+<pre id="response"></pre>
+
+<script src="const userPoolId = process.env.REACT_APP_COGNITO_USER_POOL_ID;"></script>
+<script src="check-auth.js"></script>
+
+<script>
+    (async () => {
+        await loginGuard();
+    })();
+
+    const apiUrl = "https://k8f1qi62f2.execute-api.us-east-1.amazonaws.com/prod/sessions";
+
+    document.getElementById("submit").addEventListener("click", async () => {
+        const duration = document.getElementById("duration").value.trim();
+        const notes = document.getElementById("notes").value.trim();
+        const responseBox = document.getElementById("response");
+        const idToken = localStorage.getItem("idToken");
+
+        if (!notes) {
+            showToast("Моля, въведи бележки за тренировката.", "error");
+            return;
+        }
+
+        const payload = {
+            new_session: {
+                created_at: new Date().toISOString(),
+                duration,
+                notes,
+            },
+        };
+
+        responseBox.textContent = "Изпращаме заявката...";
+
+        try {
+            const res = await fetch(apiUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: "Bearer " + idToken,
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (res.status === 403) {
+                showToast("Абонаментът е неактивен. Пренасочване към плащане…", "error");
+                setTimeout(() => {
+                    window.location.href = "payment.html";
+                }, 1200);
+                return;
+            }
+
+            const text = await res.text();
+            try {
+                const data = JSON.parse(text);
+                responseBox.textContent = data.ai_analysis || text;
+            } catch {
+                responseBox.textContent = text;
+            }
+        } catch (err) {
+            responseBox.textContent = err.message;
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>Плащане – AI Training Tracker</title>
+    <link rel="stylesheet" href="css/spinner.css"/>
+
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 400px;
+            margin: 3rem auto;
+            background: #fafafa;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        h2 { margin-bottom: 10px; }
+        #card-element {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            margin-top: 10px;
+            background: white;
+        }
+        .pay-button {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            padding: 10px 0;
+            border-radius: 8px;
+            background: #0070f3;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .pay-button:hover { background: #0059c9; }
+        .error { color: #b00020; margin-top: 10px; white-space: pre-line; }
+        .success { color: #056608; margin-top: 10px; white-space: pre-line; }
+        .info {
+            background: #eef5ff;
+            border: 1px solid #cfe3ff;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.35;
+        }
+    </style>
+</head>
+
+<body>
+<div id="redirect-reason" style="margin: 10px 0 16px;"></div>
+
+<h2>Плащане за 1 месец достъп</h2>
+<p>Цена: <b>10.00 EUR</b> (тестов режим)</p>
+
+<label>Данни на картата:</label>
+<div id="card-element"></div>
+
+<div id="payBtn" class="pay-button">Плати</div>
+<div id="message"></div>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script src="const userPoolId = process.env.REACT_APP_COGNITO_USER_POOL_ID;"></script>
+<script src="check-auth.js"></script>
+
+<script>
+    (async () => {
+        await loginGuard();
+    })();
+
+    (async () => {
+        if (await isSubscriptionActive()) {
+            showToast("Имате активен абонамент. Пренасочване...", "info");
+            setTimeout(() => {
+                window.location.href = "training.html";
+            }, 1200);
+        }
+    })();
+
+    const reasonEl = document.getElementById("redirect-reason");
+    const params = new URLSearchParams(window.location.search);
+    const reason = params.get("reason");
+
+    if (reasonEl) {
+        let text = "";
+        if (reason === "inactive") {
+            text = "Your subscription is inactive or has expired. Please complete the payment to continue.";
+        } else if (reason === "error") {
+            text = "There was a problem checking your subscription. Please try again or proceed with payment.";
+        }
+        if (text) {
+            reasonEl.textContent = text;
+            reasonEl.className = "info";
+        }
+    }
+
+    const stripe = Stripe("pk_test_51SgSGpBQvRwjoRnp1DQnAKQUdoeZsWkxkJeKF0W99e8cXBtgpjt2UECsqeHDCHCDq0hwJ5t08QTPDSuejCTLtsZ900ftYPIDUb");
+    const elements = stripe.elements();
+    const cardElement = elements.create("card");
+    cardElement.mount("#card-element");
+
+    const messageEl = document.getElementById("message");
+
+    document.getElementById("payBtn").addEventListener("click", async () => {
+        document.getElementById("payBtn").innerHTML = "Плащане...";
+        messageEl.textContent = "";
+
+        const idToken = localStorage.getItem("idToken");
+        if (!idToken) {
+            showToast("Сесията изтече. Пренасочване към вход...", "error");
+            setTimeout(() => {
+                window.location.href = "login.html";
+            }, 1500);
+            return;
+        }
+
+        try {
+            const res = await fetch("https://k8f1qi62f2.execute-api.us-east-1.amazonaws.com/prod/create-payment-intent", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + idToken
+                }
+            });
+
+            const data = await res.json();
+            if (!data.clientSecret) {
+                messageEl.textContent = "Грешка при създаване на плащане.";
+                messageEl.className = "error";
+                return;
+            }
+
+            const result = await stripe.confirmCardPayment(data.clientSecret, {
+                payment_method: { card: cardElement }
+            });
+
+            if (result.error) {
+                messageEl.textContent = result.error.message;
+                messageEl.className = "error";
+                return;
+            }
+
+            if (result.paymentIntent.status === "succeeded") {
+                setTimeout(async () => {
+                    await refreshTokens();
+                    showToast("Абонаментът е активиран успешно 🎉", "success");
+                    setTimeout(() => {
+                        window.location.href = "training.html";
+                    }, 3000);
+                }, 10000);
+            }
+
+        } catch (err) {
+            messageEl.textContent = err.message;
+            messageEl.className = "error";
+        }
+    });
+</script>
+</body>
+</html>

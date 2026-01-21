@@ -1,0 +1,61 @@
+<script>
+    const idToken = localStorage.getItem("idToken");
+    if (idToken) {
+        const tokenClaims = JSON.parse(atob(idToken.split(".")[1]));
+        if (tokenClaims.exp * 1000 > Date.now()) {
+            window.location.href = "training.html";
+        }
+    }
+
+    const poolData = {
+        UserPoolId: "us-east-1_64xXl0aTJ",
+        ClientId: "7q2kt39ik32alt55rkokkgckrl",
+    };
+
+    const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+    document
+        .getElementById("registerBtn")
+        .addEventListener("click", function () {
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value.trim();
+            const messageEl = document.getElementById("message");
+
+            messageEl.textContent = "";
+
+            if (!email || !password) {
+                messageEl.textContent = "Моля, попълни email и парола.";
+                messageEl.className = "error";
+                return;
+            }
+
+            const attributeList = [
+                new AmazonCognitoIdentity.CognitoUserAttribute({
+                    Name: "email",
+                    Value: email,
+                }),
+            ];
+
+            userPool.signUp(
+                email,
+                password,
+                attributeList,
+                null,
+                function (err, result) {
+                    if (err) {
+                        messageEl.textContent =
+                            err.message || JSON.stringify(err);
+                        messageEl.className = "error";
+                        return;
+                    }
+
+                    messageEl.textContent =
+                        "Успешна регистрация! Провери email за потвърждение, ако е включено.";
+                    messageEl.className = "success";
+                    setTimeout(() =>{
+                        window.location.href = "confirm.html";
+                    }, 3000); // поправен синтаксис
+                }
+            );
+        });
+</script>

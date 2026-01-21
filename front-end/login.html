@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8" />
+    <title>AI Training Tracker – Вход</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 37.5rem;
+            margin: 3rem auto;
+            background: #fafafa;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        input,
+        button {
+            width: 100%;
+            font-size: 1rem;
+            margin-top: 0.5rem;
+            padding: 0.75rem;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background-color: #0070f3;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background 0.1s;
+        }
+
+        button:hover {
+            background-color: #0059c9;
+        }
+
+        .error {
+            color: #b00020;
+            margin-top: 0.75rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+<h2>Вход</h2>
+
+<label>
+    Email:
+    <input id="email" type="email" placeholder="Въведи email" />
+</label>
+
+<label>
+    Парола:
+    <input id="password" type="password" placeholder="Въведи парола" />
+</label>
+
+<button id="loginBtn">Вход</button>
+
+<div id="message"></div>
+
+<script src="const userPoolId = process.env.REACT_APP_COGNITO_USER_POOL_ID;
+"></script>
+
+<script>
+    const poolData = {
+        UserPoolId: "us-east-1_64xXl0aTJ",
+        ClientId: "7q2kt39ik32alt55rkokkgckrl",
+    };
+
+    const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+    document
+        .getElementById("loginBtn")
+        .addEventListener("click", function () {
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value.trim();
+            const messageEl = document.getElementById("message");
+
+            messageEl.textContent = "";
+
+            if (!email || !password) {
+                messageEl.textContent = "Моля, попълни email и парола.";
+                messageEl.className = "error";
+                return;
+            }
+
+            const authDetails =
+                new AmazonCognitoIdentity.AuthenticationDetails({
+                    Username: email,
+                    Password: password,
+                });
+
+            const userData = {
+                Username: email,
+                Pool: userPool,
+            };
+
+            const cognitoUser =
+                new AmazonCognitoIdentity.CognitoUser(userData);
+
+            cognitoUser.authenticateUser(authDetails, {
+                onSuccess: function (session) {
+                    const idToken =
+                        session.getIdToken().getJwtToken();
+                    const accessToken =
+                        session.getAccessToken().getJwtToken();
+                    const refreshToken = session.getRefreshToken().getToken();
+                    localStorage.setItem("idToken", idToken);
+                    localStorage.setItem("accessToken", accessToken);
+                    localStorage.setItem("refreshToken", refreshToken);
+                    window.location.href =
+                        "training.html";
+                },
+                onFailure: function (err) {
+                    messageEl.textContent =
+                        err.message || JSON.stringify(err);
+                    messageEl.className = "error";
+                },
+            });
+        });
+</script>
+</body>
+</html>
